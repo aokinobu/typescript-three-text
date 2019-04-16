@@ -8,11 +8,11 @@ import {
   Color, Fog,
   HemisphereLight, SpotLight, PointLight,
   GridHelper, PlaneGeometry, DoubleSide,
-  Mesh, MeshNormalMaterial, MeshPhongMaterial, SmoothShading
+  Mesh, MeshBasicMaterial, MeshNormalMaterial, MeshPhongMaterial, SmoothShading
 } from 'three';
 // import {OrbitControls} from 'three-orbit-controls';
 
-import * as OrbitControls from 'three-orbit-controls';
+// import * as OrbitControls from 'three-orbit-controls';
 
 
 //import '@polymer/iron-ajax/iron-ajax.js';
@@ -111,9 +111,9 @@ class ThreeText extends PolymerElement {
 
     this._scene = new Scene();
     this._scene.background = new Color(this.backgroundcolor);
-    this._scene.fog = new Fog(this.backgroundcolor);
+    // this._scene.fog = new Fog(this.backgroundcolor);
     this.__setGrid();
-    this.__setLights();
+    // this.__setLights();
   }
 
   /**
@@ -122,10 +122,10 @@ class ThreeText extends PolymerElement {
    * @private
    */
   __setGrid() {
-    this._gridHelper = new GridHelper(1000, 50, 0xffffff, 0xffffff);
-    this._gridHelper.geometry.rotateX(Math.PI / 2);
-    this._gridHelper.lookAt(new Vector3(0, 0, 1));
-    this._scene.add(this._gridHelper);
+var geometry = new BoxGeometry( 1, 1, 1 );
+var material = new MeshBasicMaterial( { color: 0x00ff00 } );
+var cube = new Mesh( geometry, material );
+this._scene.add( cube );
   }
 
   /**
@@ -179,22 +179,22 @@ class ThreeText extends PolymerElement {
     });
     this._renderer.setPixelRatio(window.devicePixelRatio);
 
-    this.__setCameraAndRenderDimensions();
-    this.__setControls();
+    // this.__setCameraAndRenderDimensions();
+    // this.__setControls();
 
-    this.__initIntersectionObserver();
-    this.__initFullScreenApi();
+    // this.__initIntersectionObserver();
+    // this.__initFullScreenApi();
 
     // TODO blah, this is dumb, polyfill ResizeObserver and use that
-    window.addEventListener('resize', (e) => {
-      try {
-        ShadyDOM.flush();
-      } catch(e) {
-        // no shadydom for you
-      }
+    // window.addEventListener('resize', (e) => {
+    //   try {
+    //     ShadyDOM.flush();
+    //   } catch(e) {
+    //     // no shadydom for you
+    //   }
 
-      this.__setProjectionMatrix(this.offsetWidth, this.offsetHeight);
-    });
+    //   this.__setProjectionMatrix(this.offsetWidth, this.offsetHeight);
+    // });
   }
 
   /**
@@ -244,6 +244,22 @@ class ThreeText extends PolymerElement {
     this._controls.dampingFactor = 1.2;
   }
 
+  /**
+   * Render all the things
+   * @returns
+   * @memberof StlPartViewer
+   * @private
+   */
+  __render() {
+    // The render will pause when the intersection observer says it's not in
+    // view; we override this for the odd case where the canvas goes full screen
+    if (this._pauseRender && !this.__isFullScreenElement()) {
+      return;
+    }
+    // this.__updateReflection();
+    requestAnimationFrame(() => this.__render());
+    this._renderer.render(this._scene, this._camera);
+  }
 
 }
 
