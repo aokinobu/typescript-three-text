@@ -8,20 +8,17 @@ import {
   Color, Fog,
   HemisphereLight, SpotLight, PointLight,
   GridHelper, PlaneGeometry, DoubleSide,
-  Mesh, MeshBasicMaterial, MeshNormalMaterial, MeshPhongMaterial, SmoothShading
+  Mesh, MeshBasicMaterial, MeshNormalMaterial, MeshPhongMaterial, SmoothShading,
+  FontLoader, TextGeometry, ShapeBufferGeometry, SVGLoader, Group
 } from 'three';
-// import {OrbitControls} from 'three-orbit-controls';
 
-// import * as OrbitControls from 'three-orbit-controls';
-
-
-//import '@polymer/iron-ajax/iron-ajax.js';
-//<iron-ajax auto="" url="https://test.sparqlist.glyconavi.org/api/GlycoSample_Disease_List_chart" handle-as="json" last-response="{{diseaseresultdata}}"></iron-ajax>
+// import {OrbitControls} from './orbit-controls';
 
 class ThreeText extends PolymerElement {
   static get template() {
     return html`
       <style>
+
         :host {
           display: block;
           position: relative;
@@ -41,135 +38,67 @@ class ThreeText extends PolymerElement {
           border: 1px solid #ccc;
           padding: 5px;
         }
+        #info {
+    	    position: absolute;
+	        top: 10px;
+	        width: 100%;
+	        text-align: center;
+	        z-index: 100;
+	        display:block;
+        }
       </style>
-      <button on-click="{{__enterFullscreen}}">
-        {{fullscreen}}
-      </button>
+      <div id="info">Text inside Canvas</div>
       <canvas></canvas>
-    `;
+`;
   }
   static get properties() {
     return {
-      src: String,
-
-      /**
-       * Set the full screen button text
-       */
-      fullscreen: String,
-
-      /**
-       * Set the background color of the scene;
-       * Use rgb(), hsl(), or X11 color string
-       */
-      backgroundcolor: String,
-
-      /**
-       * Set the floor plane color;
-       * Use rgb(), hsl(), or X11 color string
-       */
-      floorcolor: String,
-
-      /**
-       * Set the color of the model file loaded;
-       * Use rgb(), hsl(), or X11 color string
-       */
-      modelcolor: String,
+      selection: {
+        notify: true,
+        type: String,
+        value: function () {
+          return new String();
+        }
+      }
     };
   }
-
   constructor() {
     super();
 
     this._modelLoaded = false;
     this._pauseRender = false;
+    this._camera = new PerspectiveCamera(125, window.innerWidth / window.innerHeight, 0.5, 500);
+    this._camera.position.z = 100;
 
     this.fullscreen = 'Full Screen';
     this.backgroundcolor = 0xf1f1f1;
     this.floorcolor = 0x666666;
     this.modelcolor = 0xfffe57;
   }
+
   ready() {
     super.ready();
     console.log("ready");
     console.log(this.shadowRoot);
+
+    this._scene = new Scene();
+    this._scene.background = new Color(this.backgroundcolor);
+    this._scene.fog = new Fog(this.backgroundcolor);
+   
+    this.__setGrid();
     this.__initRender();
+    this.__render();
   }
   handleClick(e) {
     console.log('click');
   }
-
   _handleAjaxPostError(e) {
     console.log('error: ' + e);
   }
 
   /**
-   * Setup the box grid for the bottom plane
-   * @memberof ThreeText
-   */
-  connectedCallback() {
-    super.connectedCallback();
-
-    this._scene = new Scene();
-    this._scene.background = new Color(this.backgroundcolor);
-    // this._scene.fog = new Fog(this.backgroundcolor);
-    this.__setGrid();
-    // this.__setLights();
-  }
-
-  /**
-   * Setup the box grid for the bottom plane
-   * @memberof ThreeText
-   * @private
-   */
-  __setGrid() {
-var geometry = new BoxGeometry( 1, 1, 1 );
-var material = new MeshBasicMaterial( { color: 0x00ff00 } );
-var cube = new Mesh( geometry, material );
-this._scene.add( cube );
-  }
-
-  /**
-   * Define our scene lighting
-   * @memberof ThreeText
-   * @private
-   */
-  __setLights() {
-    const hemiphereLight = new HemisphereLight(0xffffbb, 0x080820, 0.5);
-    this._scene.add(hemiphereLight);
-
-    const spotLightFront = new SpotLight(0xffffff, 0.5, 0);
-    spotLightFront.position.set(-500, 500, 500);
-    this._scene.add(spotLightFront);
-
-    const lightbulb = new PointLight(0xffffff, 0.5, 0);
-    lightbulb.position.set(2000, -2000, 2000);
-    this._scene.add(lightbulb);
-  }
-
-  /**
-   * Take the current rendering canvas for our web component and request full
-   * screen via the Full Screen API
-   * @memberof StlPartViewer
-   * @private
-   */
-  __enterFullscreen() {
-    console.log("enterfullscreen");
-    const canvas = this.shadowRoot.querySelector('canvas');
-
-    this._pauseRender = false;
-    this.__render();
-
-    if (canvas.mozRequestFullScreen) {
-      canvas.mozRequestFullScreen();
-    }
-    else if (canvas.webkitRequestFullScreen) {
-      canvas.webkitRequestFullScreen();
-    }
-    else {
-      canvas.requestFullscreen();
-    }
-  }
-
+ * Fire up the renderer
+ */
   __initRender() {
     const canvas = this.shadowRoot.querySelector('canvas');
 
@@ -178,23 +107,153 @@ this._scene.add( cube );
       antialias: true,
     });
     this._renderer.setPixelRatio(window.devicePixelRatio);
-
     // this.__setCameraAndRenderDimensions();
-    // this.__setControls();
-
-    // this.__initIntersectionObserver();
-    // this.__initFullScreenApi();
-
     // TODO blah, this is dumb, polyfill ResizeObserver and use that
-    // window.addEventListener('resize', (e) => {
-    //   try {
-    //     ShadyDOM.flush();
-    //   } catch(e) {
-    //     // no shadydom for you
-    //   }
+    window.addEventListener('resize', (e) => {
+      try {
+        ShadyDOM.flush();
+      } catch (e) {
+        // no shadydom for you
+      }
+    });
+  }
 
-    //   this.__setProjectionMatrix(this.offsetWidth, this.offsetHeight);
-    // });
+  /**
+   * Setup the box grid for the bottom plane
+   * @memberof StlPartViewer
+   * @private
+   */
+  __setGrid() {
+    // this._gridHelper = new GridHelper(1000, 50, 0xffffff, 0xffffff);
+    // this._gridHelper.geometry.rotateX( Math.PI / 2 );
+    // this._gridHelper.lookAt(new Vector3(0, 0, 1));
+    var geometry = new BoxGeometry(1, 1, 1);
+    var material = new MeshBasicMaterial({ color: 0x00ff00 });
+    this._cube = new Mesh(geometry, material);
+    // this._scene.add(this._cube);
+    this._camera.position.z = 100;
+
+    var loader = new FontLoader();
+    var self = this;
+		loader.load( 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_regular.typeface.json', function ( font ) {
+
+					var xMid, text;
+
+					var color = new Color( 0x006699 );
+
+					var matDark = new MeshBasicMaterial( {
+						color: color,
+						side: DoubleSide
+					} );
+
+					var matLite = new MeshBasicMaterial( {
+						color: color,
+						transparent: true,
+						opacity: 0.4,
+						side: DoubleSide
+					} );
+
+					var message = "   Three js message.";
+
+					var shapes = font.generateShapes( message, 100 );
+
+					var geometry = new ShapeBufferGeometry( shapes );
+
+					geometry.computeBoundingBox();
+
+					xMid = - 0.5 * ( geometry.boundingBox.max.x - geometry.boundingBox.min.x );
+
+					geometry.translate( xMid, 0, 0 );
+
+					// make shape ( N.B. edge view not visible )
+
+					text = new Mesh( geometry, matLite );
+					text.position.z = - 150;
+					self._scene.add( text );
+
+					// make line shape ( N.B. edge view remains visible )
+
+					// var holeShapes = [];
+
+					// for ( var i = 0; i < shapes.length; i ++ ) {
+
+					// 	var shape = shapes[ i ];
+
+					// 	if ( shape.holes && shape.holes.length > 0 ) {
+
+					// 		for ( var j = 0; j < shape.holes.length; j ++ ) {
+
+					// 			var hole = shape.holes[ j ];
+					// 			holeShapes.push( hole );
+
+					// 		}
+
+					// 	}
+
+					// }
+
+					// shapes.push.apply( shapes, holeShapes );
+
+          // var style = SVGLoader.getStrokeStyle( 5, color.getStyle() );
+
+					// var strokeText = new Group();
+
+					// for ( var i = 0; i < shapes.length; i ++ ) {
+
+					// 	var shape = shapes[ i ];
+
+					// 	var points = shape.getPoints();
+
+					// 	var geometry = SVGLoader.pointsToStroke( points, style );
+
+					// 	geometry.translate( xMid, 0, 0 );
+
+					// 	var strokeMesh = new Mesh( geometry, matDark );
+					// 	strokeText.add( strokeMesh );
+
+					// }
+
+					// self._scene.add( strokeText );
+
+				} ); //end load function
+
+
+    // this._scene.add(this._gridHelper);
+  }
+
+
+  /**
+   * Render all the things
+   * @returns
+   * @memberof StlPartViewer
+   * @private
+   */
+  __render() {
+    // The render will pause when the intersection observer says it's not in
+    // view; we override this for the odd case where the canvas goes full screen
+    if (this._pauseRender && !this.__isFullScreenElement()) {
+      return;
+    }
+    this._cube.rotation.x += 0.01;
+    this._cube.rotation.y += 0.01;
+    // this.__updateReflection();
+    requestAnimationFrame(() => this.__render());
+    this._renderer.render(this._scene, this._camera);
+  }
+
+  /**
+   * Set the render size and camera aspect ratio as needed based on display
+   * height and width. Important for resize and full screen events (otherwise
+   * we'll be blurring and stretched).
+   * @param {Number} width
+   * @param {Number} height
+   * @memberof StlPartViewer
+   * @private
+   */
+  __setProjectionMatrix(width, height) {
+    this._renderer.setSize(width, height);
+    this._camera.aspect = width / height;
+    this._camera.updateProjectionMatrix();
   }
 
   /**
@@ -219,48 +278,6 @@ this._scene.add( cube );
     this.__setProjectionMatrix(this.offsetWidth, this.offsetHeight);
   }
 
-  /**
-   * Set the render size and camera aspect ratio as needed based on display
-   * height and width. Important for resize and full screen events (otherwise
-   * we'll be blurring and stretched).
-   * @param {Number} width
-   * @param {Number} height
-   * @memberof StlPartViewer
-   * @private
-   */
-  __setProjectionMatrix(width, height) {
-    this._renderer.setSize(width, height);
-    this._camera.aspect = width / height;
-    this._camera.updateProjectionMatrix();
-  }
-  /**
-   * Setup of user interface controls
-   * @memberof StlPartViewer
-   * @private
-   */
-  __setControls() {
-    this._controls = new OrbitControls(this._camera, this._renderer.domElement);
-    this._controls.enableDamping = true;
-    this._controls.dampingFactor = 1.2;
-  }
-
-  /**
-   * Render all the things
-   * @returns
-   * @memberof StlPartViewer
-   * @private
-   */
-  __render() {
-    // The render will pause when the intersection observer says it's not in
-    // view; we override this for the odd case where the canvas goes full screen
-    if (this._pauseRender && !this.__isFullScreenElement()) {
-      return;
-    }
-    // this.__updateReflection();
-    requestAnimationFrame(() => this.__render());
-    this._renderer.render(this._scene, this._camera);
-  }
-
 }
 
-customElements.define('wc-three-text', ThreeText);
+window.customElements.define('wc-three-text', ThreeText);
